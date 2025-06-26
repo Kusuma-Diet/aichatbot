@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: aichatbot-backend
+    runtime: python
+    buildCommand: ""
+    startCommand: uvicorn chatbot:app --host 0.0.0.0 --port 10000
+    envVars:
+      - key: GROQ_API_KEY
+        value: your_api_key_here
