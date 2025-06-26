@@ -1,5 +1,8 @@
 Flask
+python-dotenv
 groq
-torch
 transformers
+torch
 Pillow
+PyPDF2
+
