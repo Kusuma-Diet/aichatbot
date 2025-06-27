@@ -1,11 +1,10 @@
 import os
 from dotenv import load_dotenv
 from PIL import Image
-from transformers import BlipProcessor, BlipForConditionalGeneration
+from transformers.models.blip import BlipProcessor, BlipForConditionalGeneration  # type: ignore
 import torch
 from groq import Groq
 from flask import Flask, request, jsonify, render_template
-import os
 from werkzeug.utils import secure_filename
 import PyPDF2
 
@@ -18,26 +17,10 @@ if not os.path.exists(UPLOAD_FOLDER):
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 ALLOWED_EXTENSIONS = {'jpg', 'jpeg', 'png', 'pdf'}
 
-
-# FACTS_FILE = "facts.txt"
-# if not os.path.exists(FACTS_FILE):
-#     with open(FACTS_FILE, "w") as f:
-#         f.write("AI stands for Artificial Intelligence.\nGroq accelerates LLMs.\nPDFs store structured documents.\n")
-
-# with open(FACTS_FILE, "r") as f:
-#     FACTS = f.readlines()
-
-
-
 # Groq client
 load_dotenv()
 groq_api_key = os.getenv("GROQ_API_KEY")
 client = Groq(api_key=groq_api_key)
-
-# def retrieve_context(query):
-#     query = query.lower()
-#     relevant_facts = [fact.strip() for fact in FACTS if any(word in fact.lower() for word in query.split())]
-#     return " ".join(relevant_facts)
 
 # Dummy knowledge base for RAG
 rag_knowledge_base = {
@@ -71,20 +54,29 @@ def process_text_query(query):
             max_tokens=250,
             temperature=0.7
         )
-        return response.choices[0].message.content.strip()
+        message_content = response.choices[0].message.content
+        return message_content.strip() if message_content else "No response generated."
     except Exception as e:
         return f"Error: Could not process text query. {str(e)}"
 
 def describe_image(image_path):
     try:
+        from transformers import BlipProcessor, BlipForConditionalGeneration
+        
         processor = BlipProcessor.from_pretrained("Salesforce/blip-image-captioning-base")
         model = BlipForConditionalGeneration.from_pretrained("Salesforce/blip-image-captioning-base")
         image = Image.open(image_path).convert("RGB")
+        
+        # Process the image
         inputs = processor(images=image, return_tensors="pt")
+        
         with torch.no_grad():
+            # Generate caption
             outputs = model.generate(**inputs)
-        caption = processor.decode(outputs[0], skip_special_tokens=True)
-        return f"Image Description: {caption}"
+            
+            # Decode the generated tokens
+            caption = processor.decode(outputs[0], skip_special_tokens=True)
+            return f"Image Description: {caption}"
     except Exception as e:
         return f"Error: Could not process image. {str(e)}"
 
@@ -116,7 +108,7 @@ def chat():
         if 'file' in request.files and request.files['file'].filename:
             file = request.files['file']
             if file and allowed_file(file.filename):
-                filename = secure_filename(file.filename)
+                filename = secure_filename(file.filename) if file.filename else "uploaded_file"
                 file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
                 file.save(file_path)
 
@@ -142,6 +134,5 @@ def chat():
         return jsonify({'response': f'Error: {str(e)}'})
 
 if __name__ == "__main__":
-    app.run(debug=True)
     port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port)
+    app.run(host="0.0.0.0", port=port, debug=False)
