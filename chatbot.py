@@ -1,12 +1,20 @@
 import os
 from dotenv import load_dotenv
 from PIL import Image
-from transformers.models.blip import BlipProcessor, BlipForConditionalGeneration  # type: ignore
+  # type: ignore
 import torch
 from groq import Groq
 from flask import Flask, request, jsonify, render_template
 from werkzeug.utils import secure_filename
 import PyPDF2
+from transformers import BlipProcessor, BlipForConditionalGeneration
+
+# Load BLIP once at startup
+processor = BlipProcessor.from_pretrained("Salesforce/blip-image-captioning-base")
+model = BlipForConditionalGeneration.from_pretrained("Salesforce/blip-image-captioning-base")
+
+
+
 
 app = Flask(__name__)
 
@@ -30,6 +38,11 @@ rag_knowledge_base = {
     "groq": "Groq provides high-speed inference for open-source LLMs like LLaMA-3 using their GroqCloud APIs.",
     "pdf": "PDF summarization allows extraction of main points from lengthy documents using LLMs."
 }
+
+
+
+BlipProcessor.from_pretrained("Salesforce/blip-image-captioning-base")
+BlipForConditionalGeneration.from_pretrained("Salesforce/blip-image-captioning-base")
 
 def retrieve_context(query):
     query = query.lower()
@@ -61,24 +74,15 @@ def process_text_query(query):
 
 def describe_image(image_path):
     try:
-        from transformers import BlipProcessor, BlipForConditionalGeneration
-        
-        processor = BlipProcessor.from_pretrained("Salesforce/blip-image-captioning-base")
-        model = BlipForConditionalGeneration.from_pretrained("Salesforce/blip-image-captioning-base")
         image = Image.open(image_path).convert("RGB")
-        
-        # Process the image
         inputs = processor(images=image, return_tensors="pt")
-        
         with torch.no_grad():
-            # Generate caption
             outputs = model.generate(**inputs)
-            
-            # Decode the generated tokens
-            caption = processor.decode(outputs[0], skip_special_tokens=True)
-            return f"Image Description: {caption}"
+        caption = processor.decode(outputs[0], skip_special_tokens=True)
+        return f"Image Description: {caption}"
     except Exception as e:
         return f"Error: Could not process image. {str(e)}"
+
 
 def summarize_pdf(file_path):
     try:
