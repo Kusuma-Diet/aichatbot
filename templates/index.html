@@ -252,7 +252,7 @@
       if (file) formData.append('file', file);
 
       try {
-        const res = await fetch('/api/chat', {
+        const res = await fetch('https://aichatbot-jyd3.onrender.com/api/chat', {
           method: 'POST',
           body: formData
         });
